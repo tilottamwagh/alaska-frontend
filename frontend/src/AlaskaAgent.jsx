@@ -10,7 +10,7 @@ function AlaskaAgent() {
     const newMessages = [...messages, { from: "user", text: input }];
     setMessages(newMessages);
 
-    const res = await fetch("YOUR_BACKEND_URL/api/ultravox", {
+    const res = await fetch("alaska-backend-production.up.railway.app/api/ultravox", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: input }),
