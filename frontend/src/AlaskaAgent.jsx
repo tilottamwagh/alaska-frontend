@@ -11,24 +11,38 @@ function AlaskaAgent() {
     setMessages(newMessages);
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/ultravox`, {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/ultravox/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: input }),
       });
 
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
       const data = await res.json();
-      setMessages([...newMessages, { from: "bot", text: data.reply || "No response" }]);
+      setMessages([...newMessages, { from: "bot", text: data.reply }]);
     } catch (err) {
-      console.error("Error contacting backend:", err);
       setMessages([...newMessages, { from: "bot", text: "⚠️ Error contacting agent." }]);
     }
 
     setInput("");
+  };
+
+  const startCall = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/ultravox/start-call`, {
+        method: "POST",
+      });
+
+      const data = await res.json();
+      setMessages((prev) => [
+        ...prev,
+        { from: "system", text: `📞 Call started: ID=${data.callId}, status=${data.status}` },
+      ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { from: "system", text: "⚠️ Error starting call." },
+      ]);
+    }
   };
 
   return (
@@ -36,7 +50,8 @@ function AlaskaAgent() {
       <div className="messages">
         {messages.map((msg, i) => (
           <div key={i} className={msg.from}>
-            <b>{msg.from === "user" ? "You: " : "Agent: "}</b> {msg.text}
+            <b>{msg.from === "user" ? "You: " : msg.from === "bot" ? "Agent: " : "System: "}</b>{" "}
+            {msg.text}
           </div>
         ))}
       </div>
@@ -47,6 +62,7 @@ function AlaskaAgent() {
           placeholder="Type your message..."
         />
         <button onClick={sendMessage}>Send</button>
+        <button onClick={startCall}>📞 Start Call</button>
       </div>
     </div>
   );
