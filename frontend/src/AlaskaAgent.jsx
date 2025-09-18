@@ -10,14 +10,24 @@ function AlaskaAgent() {
     const newMessages = [...messages, { from: "user", text: input }];
     setMessages(newMessages);
 
-    const res = await fetch("alaska-backend-production.up.railway.app/api/ultravox", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: input }),
-    });
+    try {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/ultravox`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: input }),
+      });
 
-    const data = await res.json();
-    setMessages([...newMessages, { from: "bot", text: data.reply || "No response" }]);
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setMessages([...newMessages, { from: "bot", text: data.reply || "No response" }]);
+    } catch (err) {
+      console.error("Error contacting backend:", err);
+      setMessages([...newMessages, { from: "bot", text: "⚠️ Error contacting agent." }]);
+    }
+
     setInput("");
   };
 
