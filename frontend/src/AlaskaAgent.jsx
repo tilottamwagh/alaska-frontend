@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Room, RoomEvent } from "livekit-client";
 
 function AlaskaAgent() {
   const [messages, setMessages] = useState([]);
@@ -37,7 +38,27 @@ function AlaskaAgent() {
         ...prev,
         { from: "system", text: `📞 Call started: ID=${data.callId}, status=${data.status}` },
       ]);
+
+      if (data.livekitUrl && data.token) {
+        const room = new Room();
+
+        room.on(RoomEvent.TrackSubscribed, (track) => {
+          if (track.kind === "audio") {
+            const audioEl = track.attach();
+            document.body.appendChild(audioEl); // plays agent audio
+          }
+        });
+
+        await room.connect(data.livekitUrl, data.token);
+
+        // Publish mic audio
+        const tracks = await Room.createLocalTracks({ audio: true });
+        await room.localParticipant.publishTrack(tracks[0]);
+
+        console.log("✅ Connected to Ultravox LiveKit session");
+      }
     } catch (err) {
+      console.error("Start call error:", err);
       setMessages((prev) => [
         ...prev,
         { from: "system", text: "⚠️ Error starting call." },
@@ -50,7 +71,13 @@ function AlaskaAgent() {
       <div className="messages">
         {messages.map((msg, i) => (
           <div key={i} className={msg.from}>
-            <b>{msg.from === "user" ? "You: " : msg.from === "bot" ? "Agent: " : "System: "}</b>{" "}
+            <b>
+              {msg.from === "user"
+                ? "You: "
+                : msg.from === "bot"
+                ? "Agent: "
+                : "System: "}
+            </b>
             {msg.text}
           </div>
         ))}
