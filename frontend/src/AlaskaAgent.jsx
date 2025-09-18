@@ -5,6 +5,7 @@ function AlaskaAgent() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
 
+  // ================== CHAT ==================
   const sendMessage = async () => {
     if (!input.trim()) return;
 
@@ -18,20 +19,42 @@ function AlaskaAgent() {
         body: JSON.stringify({ text: input }),
       });
 
+      if (!res.ok) {
+        const errText = await res.text();
+        setMessages([
+          ...newMessages,
+          { from: "error", text: `Ultravox chat error: ${res.status} - ${errText}` },
+        ]);
+        return;
+      }
+
       const data = await res.json();
       setMessages([...newMessages, { from: "bot", text: data.reply }]);
     } catch (err) {
-      setMessages([...newMessages, { from: "bot", text: "⚠️ Error contacting agent." }]);
+      setMessages([
+        ...newMessages,
+        { from: "error", text: `Network/Backend error: ${err.message}` },
+      ]);
     }
 
     setInput("");
   };
 
+  // ================== START CALL ==================
   const startCall = async () => {
     try {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/ultravox/start-call`, {
         method: "POST",
       });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        setMessages((prev) => [
+          ...prev,
+          { from: "error", text: `Start call error: ${res.status} - ${errText}` },
+        ]);
+        return;
+      }
 
       const data = await res.json();
       setMessages((prev) => [
@@ -45,13 +68,12 @@ function AlaskaAgent() {
         room.on(RoomEvent.TrackSubscribed, (track) => {
           if (track.kind === "audio") {
             const audioEl = track.attach();
-            document.body.appendChild(audioEl); // plays agent audio
+            document.body.appendChild(audioEl);
           }
         });
 
         await room.connect(data.livekitUrl, data.token);
 
-        // Publish mic audio
         const tracks = await Room.createLocalTracks({ audio: true });
         await room.localParticipant.publishTrack(tracks[0]);
 
@@ -61,7 +83,7 @@ function AlaskaAgent() {
       console.error("Start call error:", err);
       setMessages((prev) => [
         ...prev,
-        { from: "system", text: "⚠️ Error starting call." },
+        { from: "error", text: `Network/Backend error: ${err.message}` },
       ]);
     }
   };
@@ -70,18 +92,28 @@ function AlaskaAgent() {
     <div className="chat-window">
       <div className="messages">
         {messages.map((msg, i) => (
-          <div key={i} className={msg.from}>
+          <div
+            key={i}
+            className={`message ${msg.from}`}
+            style={{
+              color: msg.from === "error" ? "red" : "black",
+              fontWeight: msg.from === "error" ? "bold" : "normal",
+            }}
+          >
             <b>
               {msg.from === "user"
                 ? "You: "
                 : msg.from === "bot"
                 ? "Agent: "
-                : "System: "}
+                : msg.from === "system"
+                ? "System: "
+                : "Error: "}
             </b>
             {msg.text}
           </div>
         ))}
       </div>
+
       <div className="input-box">
         <input
           value={input}
